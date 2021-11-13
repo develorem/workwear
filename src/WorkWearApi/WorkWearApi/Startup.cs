@@ -1,16 +1,13 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.IO;
+using System.Reflection;
+using WorkWearApi.Services;
 
 namespace WorkWearApi
 {
@@ -26,11 +23,22 @@ namespace WorkWearApi
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers();
+            services.AddControllers(o => { o.InputFormatters.Insert(o.InputFormatters.Count, new TextPlainInputFormatter()); });
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "WorkWearApi", Version = "v1" });
+
+                var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
             });
+
+            // Must be singleton otherwise values won't be remembered between requests
+            services.AddSingleton<IRepository, MemoryRepository>();
+
+            // Can stay singleton while it doesn't keep any state.
+            // Also a future refactoring may see the MemoryRepository utilise this validation service,
+            // in which case it MUST be registered as Singleton.
+            services.AddSingleton<IValidationService, ValidationService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
